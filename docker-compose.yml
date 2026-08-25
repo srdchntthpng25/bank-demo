@@ -1,0 +1,83 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports: ["1433:1433"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  sqlserver-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["for attempt in $(seq 1 30); do /opt/mssql-tools18/bin/sqlcmd -S sqlserver,1433 -U sa -P \"$${MSSQL_SA_PASSWORD}\" -C -l 5 -Q \"IF DB_ID('bank') IS NULL CREATE DATABASE bank\" && exit 0; echo \"Waiting for SQL Server (attempt $$attempt/30)...\"; sleep 2; done; exit 1"]
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ibmmq:
+    image: icr.io/ibm-messaging/mq:9.4.3.0-r1
+    environment:
+      LICENSE: accept
+      MQ_QMGR_NAME: QM1
+      MQ_APP_PASSWORD: ${MQ_APP_PASSWORD}
+      MQ_ADMIN_PASSWORD: ${MQ_ADMIN_PASSWORD}
+    ports: ["1414:1414"]
+    volumes:
+      - ./mq-config/20-transfer-queue.mqsc:/etc/mqm/20-transfer-queue.mqsc:ro
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/127.0.0.1/1414'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  app:
+    build: .
+    depends_on:
+      sqlserver-init:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+      ibmmq:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:sqlserver://sqlserver:1433;databaseName=bank;encrypt=false;trustServerCertificate=true
+      DB_USERNAME: sa
+      DB_PASSWORD: ${MSSQL_SA_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MQ_CONN_NAME: ibmmq(1414)
+      MQ_USER: app
+      MQ_PASSWORD: ${MQ_APP_PASSWORD}
+      MQ_QUEUE_NAME: TRANSFER.COMPLETED
+    ports: ["8080:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health | grep -q 'UP' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api-test:
+    image: curlimages/curl:8.10.1
+    profiles: ["test"]
+    depends_on:
+      app:
+        condition: service_healthy
+    entrypoint: ["curl"]

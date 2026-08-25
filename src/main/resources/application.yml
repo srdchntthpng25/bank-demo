@@ -1,0 +1,46 @@
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:sqlserver://localhost:1433;databaseName=bank;encrypt=false;trustServerCertificate=true}
+    username: ${DB_USERNAME:sa}
+    password: ${DB_PASSWORD}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  jms:
+    listener:
+      acknowledge-mode: auto
+ibm:
+  mq:
+    queue-manager: ${MQ_QUEUE_MANAGER:QM1}
+    channel: ${MQ_CHANNEL:DEV.APP.SVRCONN}
+    conn-name: ${MQ_CONN_NAME:localhost(1414)}
+    user: ${MQ_USER:app}
+    password: ${MQ_PASSWORD}
+payment:
+  outbox:
+    poll-ms: ${OUTBOX_POLL_MS:1000}
+  messaging:
+    transfer-completed-queue: ${MQ_QUEUE_NAME:TRANSFER.COMPLETED}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  info:
+    title: Payment Service API
+    description: Account, ledger, and transfer operations
+    version: v1

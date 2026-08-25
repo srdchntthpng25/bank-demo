@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-payment-schema
+      author: payment-team
+      sqlFile:
+        path: db/changelog/001-payment-schema.sql
+        relativeToChangelogFile: false
+        splitStatements: true
+        stripComments: false
+  - changeSet:
+      id: 002-use-datetimeoffset-for-instants
+      author: payment-team
+      sqlFile:
+        path: db/changelog/002-use-datetimeoffset-for-instants.sql
+        relativeToChangelogFile: false
+        splitStatements: true
+        stripComments: false
+  - changeSet:
+      id: 003-use-varchar-for-currency
+      author: payment-team
+      sqlFile:
+        path: db/changelog/003-use-varchar-for-currency.sql
+        relativeToChangelogFile: false
+        splitStatements: true
+        stripComments: false
+  - changeSet:
+      id: 004-seed-demo-accounts
+      author: payment-team
+      sqlFile:
+        path: db/changelog/004-seed-demo-accounts.sql
+        relativeToChangelogFile: false
+        splitStatements: true
+        stripComments: false
